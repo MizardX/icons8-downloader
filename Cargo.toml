@@ -1,0 +1,10 @@
+[package]
+name = "icons8-downloader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0.53"
+crossterm = "0.23.0"
+tokio = { version = "1.16.1", features = ["full"] }
+tui = "0.17.0"
