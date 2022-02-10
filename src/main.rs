@@ -1,9 +1,12 @@
+mod core;
 mod events;
 mod ui;
 
+use crate::core::app::{App, AppState};
 use anyhow::Result;
 use events::{EventType, Events};
-use std::io;
+use std::{io, sync::Arc};
+use tokio::sync::Mutex;
 use ui::{draw_icon_list, draw_icon_pack_list};
 
 use crossterm::{
@@ -20,11 +23,14 @@ use tui::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    start_ui().await?;
+    let app = Arc::new(Mutex::new(App::new()));
+
+    start_ui(&app).await?;
+
     Ok(())
 }
 
-async fn start_ui() -> Result<()> {
+async fn start_ui(app: &Arc<Mutex<App>>) -> Result<()> {
     let stdout = io::stdout();
     enable_raw_mode()?;
 
@@ -36,6 +42,8 @@ async fn start_ui() -> Result<()> {
     terminal.hide_cursor()?;
 
     loop {
+        let mut app = app.lock().await;
+
         terminal.autoresize()?;
 
         terminal.draw(|f| {
@@ -57,14 +65,24 @@ async fn start_ui() -> Result<()> {
                 .wrap(Wrap { trim: true });
 
             f.render_widget(header, layout[0]);
-            draw_icon_pack_list(f, &body_layout[0], Some(0));
-            draw_icon_list(f, &body_layout[1], Some(0));
+
+            draw_icon_pack_list(f, &body_layout[0], &app);
+            draw_icon_list(f, &body_layout[1], &app);
         })?;
 
         // EventType::Tick will be implemented, although it is not needed so far
-        // TODO: Next/Previous navigation in lists
-        if let EventType::Input(KeyCode::Char('q')) = events.next() {
-            break;
+        if let EventType::Input(i) = events.next() {
+            match i {
+                KeyCode::Char('q') => break,
+                KeyCode::Up => app.previous(),
+                KeyCode::Down => app.next(),
+                KeyCode::Enter => app.switch_list(AppState::IconList),
+                KeyCode::Esc => {
+                    app.icon_packs.icon_list_idx = 0;
+                    app.switch_list(AppState::IconPacks);
+                }
+                _ => (),
+            }
         }
     }
 
