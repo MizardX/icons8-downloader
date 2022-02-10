@@ -43,15 +43,9 @@ pub fn draw_icon_pack_list<B: Backend>(frame: &mut Frame<B>, rect_chunk: &Rect, 
 }
 
 pub fn draw_icon_list<B: Backend>(frame: &mut Frame<B>, rect_chunk: &Rect, app: &App) {
-    let selected = app.icon_packs.icon_packs_idx;
-    let icon_pack = &app.icon_packs.list[selected];
-
-    let mut state = ListState::default();
-    state.select(Some(app.icon_packs.icon_list_idx));
-
     let block = Block::default().title("Icon List").borders(Borders::ALL);
 
-    if icon_pack.icons.is_empty() {
+    if app.icon_packs.list.is_empty() {
         let result = Paragraph::new("Fetching icons..")
             .block(block)
             .alignment(Alignment::Center);
@@ -59,6 +53,12 @@ pub fn draw_icon_list<B: Backend>(frame: &mut Frame<B>, rect_chunk: &Rect, app: 
         frame.render_widget(result, *rect_chunk);
         return;
     }
+
+    let selected = app.icon_packs.icon_packs_idx;
+    let icon_pack = &app.icon_packs.list[selected];
+
+    let mut state = ListState::default();
+    state.select(Some(app.icon_packs.icon_list_idx));
 
     let items: Vec<ListItem> = icon_pack
         .icons
