@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.53"
 crossterm = "0.23.0"
+reqwest = "0.11.9"
+serde = { version = "1.0.136", features = ["derive"] }
+serde_json = "1.0.78"
 tokio = { version = "1.16.1", features = ["full"] }
 tui = "0.17.0"

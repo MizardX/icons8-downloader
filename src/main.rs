@@ -2,11 +2,12 @@ mod core;
 mod events;
 mod ui;
 
-use crate::core::app::{App, AppState};
+use crate::core::api;
+use crate::core::app::{App, AppEvent, AppState};
 use anyhow::Result;
 use events::{EventType, Events};
 use std::{io, sync::Arc};
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 use ui::{draw_icon_list, draw_icon_pack_list};
 
 use crossterm::{
@@ -23,11 +24,25 @@ use tui::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let app = Arc::new(Mutex::new(App::new()));
+    let (tx, rx) = mpsc::channel::<AppEvent>(100);
+    let app = Arc::new(Mutex::new(App::new(tx)));
+    let cloned_app = Arc::clone(&app);
 
-    start_ui(&app).await?;
+    tokio::spawn(async move {
+        start_events(rx, app).await;
+    });
+
+    start_ui(&cloned_app).await?;
 
     Ok(())
+}
+
+async fn start_events(mut rx: mpsc::Receiver<AppEvent>, app: Arc<Mutex<App>>) {
+    while let Some(event) = rx.recv().await {
+        match event {
+            AppEvent::FetchIconPacks => api::fetch_icon_packs(&app).await,
+        }
+    }
 }
 
 async fn start_ui(app: &Arc<Mutex<App>>) -> Result<()> {
@@ -37,6 +52,7 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
     let events = Events::new();
+    let mut first_render = true;
 
     terminal.clear()?;
     terminal.hide_cursor()?;
@@ -83,6 +99,14 @@ async fn start_ui(app: &Arc<Mutex<App>>) -> Result<()> {
                 }
                 _ => (),
             }
+        }
+
+        if first_render {
+            if app.tx.send(AppEvent::FetchIconPacks).await.is_err() {
+                panic!("Unable to send event");
+            }
+
+            first_render = false;
         }
     }
 

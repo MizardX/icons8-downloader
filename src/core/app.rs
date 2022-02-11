@@ -1,3 +1,5 @@
+use tokio::sync::mpsc;
+
 #[derive(Default)]
 pub struct IconPacks {
     pub icon_packs_idx: usize,
@@ -7,6 +9,7 @@ pub struct IconPacks {
 
 pub struct IconPack {
     pub title: String,
+    pub api_code: String,
     pub icons: Vec<Icon>,
 }
 
@@ -16,19 +19,17 @@ pub struct Icon {
 }
 
 impl IconPack {
-    pub fn new(title: String) -> IconPack {
-        let mut icons = vec![];
-
-        // This is only mock data, until we add api support.
-        for i in 1..50 {
-            icons.push(Icon {
-                name: format!("Mock Icon {i}"),
-                id: String::from("0"),
-            });
+    pub fn new(title: String, api_code: String) -> IconPack {
+        IconPack {
+            title,
+            api_code,
+            icons: vec![],
         }
-
-        IconPack { title, icons }
     }
+}
+
+pub enum AppEvent {
+    FetchIconPacks,
 }
 
 #[derive(PartialEq, Eq)]
@@ -46,40 +47,52 @@ impl AppState {
 pub struct App {
     pub icon_packs: IconPacks,
     pub state: AppState,
+    pub tx: mpsc::Sender<AppEvent>,
 }
 
 impl App {
-    pub fn new() -> App {
-        let mut icon_packs = IconPacks::default();
+    pub fn new(tx: mpsc::Sender<AppEvent>) -> App {
+        let icon_packs = IconPacks::default();
         let state = AppState::default();
 
-        // This is only mock data, until we add api support.
-        for i in 1..16 {
-            icon_packs
-                .list
-                .push(IconPack::new(format!("Mock Icon Pack {i}")));
+        App {
+            icon_packs,
+            state,
+            tx,
         }
-
-        App { icon_packs, state }
     }
-    
+
     pub fn switch_list(&mut self, state: AppState) {
         if self.state != state {
-            self.state = state;
+            match state {
+                AppState::IconList => {
+                    if !self.icon_packs.list.is_empty() {
+                        let selected = self.icon_packs.icon_list_idx;
+                        let icon_pack = &self.icon_packs.list[selected];
+
+                        if icon_pack.icons.is_empty() {
+                            return;
+                        }
+
+                        self.state = state;
+                    }
+                }
+                _ => self.state = state,
+            }
         }
     }
 
     pub fn next(&mut self) {
         match self.state {
             AppState::IconPacks => self.next_pack(),
-            AppState::IconList => self.next_icon()
+            AppState::IconList => self.next_icon(),
         }
     }
 
     pub fn previous(&mut self) {
         match self.state {
             AppState::IconPacks => self.previous_pack(),
-            AppState::IconList => self.previous_icon()
+            AppState::IconList => self.previous_icon(),
         }
     }
 

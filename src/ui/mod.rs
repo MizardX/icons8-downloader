@@ -46,7 +46,7 @@ pub fn draw_icon_list<B: Backend>(frame: &mut Frame<B>, rect_chunk: &Rect, app: 
     let block = Block::default().title("Icon List").borders(Borders::ALL);
 
     if app.icon_packs.list.is_empty() {
-        let result = Paragraph::new("Fetching icons..")
+        let result = Paragraph::new("Fetching icon packs..")
             .block(block)
             .alignment(Alignment::Center);
 
@@ -56,6 +56,15 @@ pub fn draw_icon_list<B: Backend>(frame: &mut Frame<B>, rect_chunk: &Rect, app: 
 
     let selected = app.icon_packs.icon_packs_idx;
     let icon_pack = &app.icon_packs.list[selected];
+
+    if icon_pack.icons.is_empty() {
+        let result = Paragraph::new("Fetching icons..")
+            .block(block)
+            .alignment(Alignment::Center);
+
+        frame.render_widget(result, *rect_chunk);
+        return;
+    }
 
     let mut state = ListState::default();
     state.select(Some(app.icon_packs.icon_list_idx));
